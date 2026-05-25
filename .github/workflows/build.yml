@@ -85,13 +85,15 @@ jobs:
 
       - name: Install system deps
         run: |
-          zypper install -y python3 python3-pip python3-tk gcc
+          zypper install -y python3 python3-pip python3-tk gcc python3-virtualenv
 
       - name: Install dependencies
-        run: pip3 install customtkinter pystray pillow pyinstaller
+        run: |
+          python3 -m venv .venv
+          .venv/bin/pip install customtkinter pystray pillow pyinstaller
 
       - name: Build
-        run: pyinstaller --onefile --windowed --name BotRestarter-opensuse --collect-all customtkinter restarter.py
+        run: .venv/bin/pyinstaller --onefile --windowed --name BotRestarter-opensuse --collect-all customtkinter restarter.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
