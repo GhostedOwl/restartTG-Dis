@@ -9,6 +9,12 @@ on:
 permissions:
   contents: write
 
+env:
+  APP_NAME: Restarter
+  PY_VER: '3.11'
+  FPM_MAINTAINER: ""
+  FPM_DESCRIPTION: "Restarter for Telegram and Discord"
+
 jobs:
 
   build-windows:
@@ -18,96 +24,179 @@ jobs:
 
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: ${{ env.PY_VER }}
 
       - name: Install dependencies
-        run: pip install customtkinter pystray pillow pyinstaller
+        run: python -m pip install --upgrade pip setuptools wheel && python -m pip install customtkinter pystray pillow pyinstaller
 
-      - name: Build
-        run: pyinstaller --onefile --windowed --name BotRestarter restarter.py
+      - name: Build exe
+        run: pyinstaller --onefile --windowed --name ${{ env.APP_NAME }} restarter.py
 
-      - name: Upload artifact
+      - name: Upload artifact (.exe)
         uses: actions/upload-artifact@v4
         with:
-          name: BotRestarter-windows
-          path: dist/BotRestarter.exe
+          name: Restarter-windows
+          path: dist/${{ env.APP_NAME }}.exe
 
   build-deb:
     runs-on: ubuntu-22.04
+    env:
+      VERSION: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: ${{ env.PY_VER }}
 
       - name: Install system deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-tk libappindicator3-dev
+          sudo apt-get install -y python3-tk libappindicator3-dev ruby ruby-dev build-essential
 
-      - name: Install dependencies
-        run: pip install customtkinter pystray pillow pyinstaller
+      - name: Install Python deps
+        run: python -m pip install --upgrade pip setuptools wheel && python -m pip install customtkinter pystray pillow pyinstaller
 
-      - name: Build
-        run: pyinstaller --onefile --windowed --name BotRestarter --collect-all customtkinter restarter.py
+      - name: Install fpm
+        run: sudo gem install --no-document fpm
 
-      - name: Upload artifact
+      - name: Build binary
+        run: pyinstaller --onefile --windowed --name ${{ env.APP_NAME }} --collect-all customtkinter restarter.py
+
+      - name: Prepare package layout
+        run: |
+          rm -rf pkg
+          mkdir -p pkg/usr/local/bin
+          cp dist/${{ env.APP_NAME }} pkg/usr/local/bin/${{ env.APP_NAME }}
+          chmod +x pkg/usr/local/bin/${{ env.APP_NAME }}
+
+      - name: Build .deb with fpm
+        run: |
+          fpm -s dir -t deb \
+            -n ${{ env.APP_NAME }} \
+            -v "${{ env.VERSION }}" \
+            --maintainer "${{ env.FPM_MAINTAINER }}" \
+            --description "${{ env.FPM_DESCRIPTION }}" \
+            --prefix / \
+            -C pkg .
+
+      - name: Move .deb to dist and upload
+        run: |
+          mkdir -p dist/packages
+          mv *.deb dist/packages/${{ env.APP_NAME }}-${{ env.VERSION }}.deb
+
+      - name: Upload artifact (.deb)
         uses: actions/upload-artifact@v4
         with:
-          name: BotRestarter-linux-deb
-          path: dist/BotRestarter
+          name: Restarter-linux-deb
+          path: dist/packages/${{ env.APP_NAME }}-${{ env.VERSION }}.deb
 
   build-rpm-rhel:
     runs-on: ubuntu-22.04
     container: rockylinux:9
+    env:
+      VERSION: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install system deps
+      - name: Install system deps (inside container)
         run: |
-          dnf install -y python3 python3-pip python3-tkinter gcc
+          dnf install -y python3 python3-pip python3-tkinter gcc ruby ruby-devel make rpm-build
+          dnf clean all
 
-      - name: Install dependencies
-        run: pip3 install customtkinter pystray pillow pyinstaller
+      - name: Install Python deps
+        run: python3 -m pip install --upgrade pip setuptools wheel && python3 -m pip install customtkinter pystray pillow pyinstaller
 
-      - name: Build
-        run: pyinstaller --onefile --windowed --name BotRestarter-rhel --collect-all customtkinter restarter.py
+      - name: Install fpm
+        run: gem install --no-document fpm
 
-      - name: Upload artifact
+      - name: Build binary
+        run: pyinstaller --onefile --windowed --name ${{ env.APP_NAME }}-rhel --collect-all customtkinter restarter.py
+
+      - name: Prepare package layout
+        run: |
+          rm -rf pkg
+          mkdir -p pkg/usr/local/bin
+          cp dist/${{ env.APP_NAME }}-rhel pkg/usr/local/bin/${{ env.APP_NAME }}
+          chmod +x pkg/usr/local/bin/${{ env.APP_NAME }}
+
+      - name: Build .rpm with fpm
+        run: |
+          fpm -s dir -t rpm \
+            -n ${{ env.APP_NAME }} \
+            -v "${{ env.VERSION }}" \
+            --maintainer "${{ env.FPM_MAINTAINER }}" \
+            --description "${{ env.FPM_DESCRIPTION }}" \
+            --prefix / \
+            -C pkg .
+
+      - name: Move .rpm to dist and upload
+        run: |
+          mkdir -p dist/packages
+          mv *.rpm dist/packages/${{ env.APP_NAME }}-${{ env.VERSION }}.rpm
+
+      - name: Upload artifact (.rpm for RHEL)
         uses: actions/upload-artifact@v4
         with:
-          name: BotRestarter-linux-rhel
-          path: dist/BotRestarter-rhel
+          name: Restarter-linux-rhel
+          path: dist/packages/${{ env.APP_NAME }}-${{ env.VERSION }}.rpm
 
   build-rpm-opensuse:
     runs-on: ubuntu-22.04
     container: opensuse/tumbleweed
+    env:
+      VERSION: ${{ github.ref_name }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install system deps
+      - name: Install system deps (inside container)
         run: |
-          zypper install -y python3 python3-pip python3-tk python3-devel gcc
-          zypper install -y libayatana-appindicator3-1 libayatana-appindicator3-devel || true
+          zypper refresh
+          zypper install -y python3 python3-pip python3-tk python3-devel gcc ruby ruby-devel make rpm-build || true
 
-      - name: Install dependencies
+      - name: Create venv and install Python deps
         run: |
           python3 -m venv /tmp/build_env
           source /tmp/build_env/bin/activate
           pip install --upgrade pip setuptools wheel
           pip install customtkinter pystray pillow pyinstaller
 
-      - name: Build
+      - name: Install fpm
+        run: |
+          gem install --no-document fpm
+
+      - name: Build binary
         run: |
           source /tmp/build_env/bin/activate
-          pyinstaller --onefile --windowed --name BotRestarter-opensuse --collect-all customtkinter restarter.py
+          pyinstaller --onefile --windowed --name ${{ env.APP_NAME }}-opensuse --collect-all customtkinter restarter.py
 
-      - name: Upload artifact
+      - name: Prepare package layout
+        run: |
+          rm -rf pkg
+          mkdir -p pkg/usr/local/bin
+          cp dist/${{ env.APP_NAME }}-opensuse pkg/usr/local/bin/${{ env.APP_NAME }}
+          chmod +x pkg/usr/local/bin/${{ env.APP_NAME }}
+
+      - name: Build .rpm with fpm (openSUSE)
+        run: |
+          fpm -s dir -t rpm \
+            -n ${{ env.APP_NAME }} \
+            -v "${{ env.VERSION }}" \
+            --maintainer "${{ env.FPM_MAINTAINER }}" \
+            --description "${{ env.FPM_DESCRIPTION }}" \
+            --prefix / \
+            -C pkg .
+
+      - name: Move .rpm to dist and upload
+        run: |
+          mkdir -p dist/packages
+          mv *.rpm dist/packages/${{ env.APP_NAME }}-opensuse-${{ env.VERSION }}.rpm
+
+      - name: Upload artifact (.rpm for openSUSE)
         uses: actions/upload-artifact@v4
         with:
-          name: BotRestarter-linux-opensuse
-          path: dist/BotRestarter-opensuse
+          name: Restarter-linux-opensuse
+          path: dist/packages/${{ env.APP_NAME }}-opensuse-${{ env.VERSION }}.rpm
 
   release:
     runs-on: ubuntu-latest
@@ -124,7 +213,8 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           files: |
-            artifacts/BotRestarter-windows/BotRestarter.exe
-            artifacts/BotRestarter-linux-deb/BotRestarter
-            artifacts/BotRestarter-linux-rhel/BotRestarter-rhel
-            artifacts/BotRestarter-linux-opensuse/BotRestarter-opensuse
+            artifacts/Restarter-windows/Restarter.exe
+            artifacts/Restarter-linux-deb/Restarter-${{ github.ref_name }}.deb
+            artifacts/Restarter-linux-rhel/Restarter-${{ github.ref_name }}.rpm
+            artifacts/Restarter-linux-opensuse/Restarter-opensuse-${{ github.ref_name }}.rpm
+
