@@ -9,6 +9,7 @@ import platform
 import threading
 import signal
 import time
+import glob
 
 try:
     from PIL import Image
@@ -18,6 +19,9 @@ except ImportError:
     TRAY_AVAILABLE = False
 
 CONFIG_FILE = os.path.join(os.path.dirname(os.path.abspath(sys.executable if getattr(sys, 'frozen', False) else __file__)), "config.json")
+
+TELEGRAM_NAMES = {"telegram", "telegram-desktop", "telegram desktop"}
+DISCORD_NAMES  = {"discord", "discordcanary", "discordptb", "discord canary", "discord ptb"}
 
 def get_de():
     if platform.system() == "Windows":
@@ -42,6 +46,36 @@ def save_config(cfg):
             json.dump(cfg, f, indent=2)
     except Exception as e:
         messagebox.showerror("Ошибка", f"Не удалось сохранить конфиг:\n{e}")
+
+def detect_running_path(name_set):
+    system = platform.system()
+    try:
+        if system == "Windows":
+            result = subprocess.run(
+                ["wmic", "process", "get", "Name,ExecutablePath", "/FORMAT:CSV"],
+                capture_output=True, text=True
+            )
+            for line in result.stdout.strip().splitlines():
+                parts = line.split(",")
+                if len(parts) < 3:
+                    continue
+                exe_path = parts[1].strip()
+                name = parts[2].strip()
+                base = os.path.splitext(name)[0].lower()
+                if base in name_set and exe_path and os.path.isfile(exe_path):
+                    return exe_path
+        else:
+            for exe_link in glob.glob("/proc/*/exe"):
+                try:
+                    exe_path = os.readlink(exe_link)
+                    base = os.path.splitext(os.path.basename(exe_path))[0].lower()
+                    if base in name_set and os.path.isfile(exe_path):
+                        return exe_path
+                except (OSError, PermissionError):
+                    continue
+    except Exception:
+        pass
+    return None
 
 def find_pid_by_path(binary_path):
     name = os.path.basename(binary_path)
@@ -125,6 +159,25 @@ class App(ctk.CTk):
 
         if TRAY_AVAILABLE and get_de() != "gnome":
             self._setup_tray()
+
+        self.after(100, self._autodetect)
+
+    def _autodetect(self):
+        changed = False
+        if not self.config_data.get("telegram"):
+            path = detect_running_path(TELEGRAM_NAMES)
+            if path:
+                self.config_data["telegram"] = path
+                self.tg_entry.insert(0, path)
+                changed = True
+        if not self.config_data.get("discord"):
+            path = detect_running_path(DISCORD_NAMES)
+            if path:
+                self.config_data["discord"] = path
+                self.dc_entry.insert(0, path)
+                changed = True
+        if changed:
+            save_config(self.config_data)
 
     def _build_ui(self):
         pad = {"padx": 20, "pady": 8}
@@ -225,20 +278,26 @@ class App(ctk.CTk):
             img = Image.new("RGB", (64, 64), color=(37, 99, 235))
             draw_tray_icon(img)
 
+            def toggle_label(item):
+                return "Свернуть" if self.winfo_viewable() else "Развернуть"
+
+            def toggle_action(icon, item):
+                if self.winfo_viewable():
+                    self.after(0, self.withdraw)
+                else:
+                    self.after(0, self.deiconify)
+                    self.after(0, self.lift)
+
             menu = pystray.Menu(
-                pystray.MenuItem("Развернуть", self._show_window, default=True),
-                pystray.MenuItem("Перезапустить TG + Discord", self._tray_restart_both),
+                pystray.MenuItem(toggle_label, toggle_action, default=True),
+                pystray.MenuItem("Перезапустить TG + Discord", lambda icon, item: self._tray_restart_both()),
                 pystray.Menu.SEPARATOR,
-                pystray.MenuItem("Выход", self._quit),
+                pystray.MenuItem("Выход", lambda icon, item: self._quit()),
             )
             self.tray_icon = pystray.Icon("Restarter", img, "Restarter", menu)
             threading.Thread(target=self.tray_icon.run, daemon=True).start()
         except Exception:
             pass
-
-    def _show_window(self):
-        self.after(0, self.deiconify)
-        self.after(0, self.lift)
 
     def _tray_restart_both(self):
         self._do_restart_both()
