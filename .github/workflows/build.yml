@@ -24,13 +24,13 @@ jobs:
         run: pip install customtkinter pystray pillow pyinstaller
 
       - name: Build
-        run: pyinstaller --onefile --windowed --name BotRestarter restarter.py
+        run: pyinstaller --onefile --windowed --name Restarter restarter.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BotRestarter-windows
-          path: dist/BotRestarter.exe
+          name: Restarter-windows
+          path: dist/Restarter.exe
 
   build-deb:
     runs-on: ubuntu-22.04
@@ -50,13 +50,13 @@ jobs:
         run: pip install customtkinter pystray pillow pyinstaller
 
       - name: Build
-        run: pyinstaller --onefile --windowed --name BotRestarter --collect-all customtkinter restarter.py
+        run: pyinstaller --onefile --windowed --name Restarter --collect-all customtkinter restarter.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BotRestarter-linux-deb
-          path: dist/BotRestarter
+          name: Restarter-linux-deb
+          path: dist/Restarter
 
   build-rpm-rhel:
     runs-on: ubuntu-22.04
@@ -72,13 +72,13 @@ jobs:
         run: pip3 install customtkinter pystray pillow pyinstaller
 
       - name: Build
-        run: pyinstaller --onefile --windowed --name BotRestarter-rhel --collect-all customtkinter restarter.py
+        run: pyinstaller --onefile --windowed --name Restarter-rhel --collect-all customtkinter restarter.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BotRestarter-linux-rhel
-          path: dist/BotRestarter-rhel
+          name: Restarter-linux-rhel
+          path: dist/Restarter-rhel
 
   build-rpm-opensuse:
     runs-on: ubuntu-22.04
@@ -101,13 +101,13 @@ jobs:
       - name: Build
         run: |
           source /tmp/build_env/bin/activate
-          pyinstaller --onefile --windowed --name BotRestarter-opensuse --collect-all customtkinter restarter.py
+          pyinstaller --onefile --windowed --name Restarter-opensuse --collect-all customtkinter restarter.py
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: BotRestarter-linux-opensuse
-          path: dist/BotRestarter-opensuse
+          name: Restarter-linux-opensuse
+          path: dist/Restarter-opensuse
 
   release:
     runs-on: ubuntu-latest
@@ -124,7 +124,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           files: |
-            artifacts/BotRestarter-windows/BotRestarter.exe
-            artifacts/BotRestarter-linux-deb/BotRestarter
-            artifacts/BotRestarter-linux-rhel/BotRestarter-rhel
-            artifacts/BotRestarter-linux-opensuse/BotRestarter-opensuse
+            artifacts/Restarter-windows/Restarter.exe
+            artifacts/Restarter-linux-deb/Restarter
+            artifacts/Restarter-linux-rhel/Restarter-rhel
+            artifacts/Restarter-linux-opensuse/Restarter-opensuse
