@@ -1,69 +1,140 @@
 name: Build
 on:
-  push:
-    tags:
-      - 'v*'
-  workflow_dispatch:
+  name: Build
 
-permissions:
-  contents: write   # важно для создания релиза
-          - name: Download all artifacts
-            uses: actions/download-artifact@v4
-            with:
-              path: artifacts
+  on:
+    push:
+      tags:
+        - 'v*'
+    workflow_dispatch:
 
-          - name: List downloaded artifacts (debug)
-            run: |
-              echo "Listing artifacts folder"
-              ls -la artifacts || true
-              ls -R artifacts || true
+  permissions:
+    contents: write
 
-          - name: Create Release and upload all artifacts
-            uses: softprops/action-gh-release@v2
-            with:
-              token: ${{ secrets.GITHUB_TOKEN }}
-              tag_name: ${{ github.ref_name }}
-              name: ${{ github.ref_name }}
-              files: |
-                artifacts/**
-      - uses: actions/checkout@v4
-      - name: Build RPM RHEL
-        run: echo "Сборка RPM RHEL..."
+  jobs:
 
-  build-rpm-opensuse:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build RPM openSUSE
-        run: echo "Сборка RPM openSUSE..."
+    build-windows:
+      runs-on: windows-latest
+      steps:
+        - uses: actions/checkout@v4
 
-  release:
-    runs-on: ubuntu-latest
-    needs: [build-windows, build-deb, build-rpm-rhel, build-rpm-opensuse]
-    if: startsWith(github.ref, 'refs/tags/')
-    steps:
-<<<<<<< HEAD
-      - uses: actions/download-artifact@v4
-=======
-      permissions: # гарантируем, что токен может создавать релизы и загружать артефакты
-        contents: write
+        - uses: actions/setup-python@v5
+          with:
+            python-version: '3.11'
 
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
->>>>>>> a309b50 (ci: upload downloaded artifacts to release; ensure permissions; debug listing)
-        with:
-          path: artifacts
+        - name: Install dependencies
+          run: pip install customtkinter pystray pillow pyinstaller
 
-      - name: List downloaded artifacts (debug)
-        run: |
-          echo "Listing artifacts folder"
-          ls -la artifacts || true
-          ls -R artifacts || true
+        - name: Build
+          run: pyinstaller --onefile --windowed --name BotRestarter --icon=icon.ico restarter.py
 
-      - name: Create Release and upload all artifacts
-        uses: softprops/action-gh-release@v2
-        with:
-<<<<<<< HEAD
+        - name: Upload artifact
+          uses: actions/upload-artifact@v4
+          with:
+            name: BotRestarter-windows
+            path: dist/BotRestarter.exe
+
+    build-deb:
+      runs-on: ubuntu-22.04
+      steps:
+        - uses: actions/checkout@v4
+
+        - uses: actions/setup-python@v5
+          with:
+            python-version: '3.11'
+
+        - name: Install system deps
+          run: |
+            sudo apt-get update
+            sudo apt-get install -y python3-tk libappindicator3-dev
+
+        - name: Install dependencies
+          run: pip install customtkinter pystray pillow pyinstaller
+
+        - name: Build
+          run: pyinstaller --onefile --windowed --name BotRestarter --collect-all customtkinter restarter.py
+
+        - name: Upload artifact
+          uses: actions/upload-artifact@v4
+          with:
+            name: BotRestarter-linux-deb
+            path: dist/BotRestarter
+
+    build-rpm-rhel:
+      runs-on: ubuntu-22.04
+      container: rockylinux:9
+      steps:
+        - uses: actions/checkout@v4
+
+        - name: Install system deps
+          run: |
+            dnf install -y python3 python3-pip python3-tkinter gcc
+
+        - name: Install dependencies
+          run: pip3 install customtkinter pystray pillow pyinstaller
+
+        - name: Build
+          run: pyinstaller --onefile --windowed --name BotRestarter-rhel --collect-all customtkinter restarter.py
+
+        - name: Upload artifact
+          uses: actions/upload-artifact@v4
+          with:
+            name: BotRestarter-linux-rhel
+            path: dist/BotRestarter-rhel
+
+    build-rpm-opensuse:
+      runs-on: ubuntu-22.04
+      container: opensuse/tumbleweed
+      steps:
+        - uses: actions/checkout@v4
+
+        - name: Install system deps
+          run: |
+            zypper install -y python3 python3-pip python3-tk python3-devel gcc
+            zypper install -y libayatana-appindicator3-1 libayatana-appindicator3-devel || true
+
+        - name: Install dependencies
+          run: |
+            python3 -m venv /tmp/build_env
+            source /tmp/build_env/bin/activate
+            pip install --upgrade pip setuptools wheel
+            pip install customtkinter pystray pillow pyinstaller
+
+        - name: Build
+          run: |
+            source /tmp/build_env/bin/activate
+            pyinstaller --onefile --windowed --name BotRestarter-opensuse --collect-all customtkinter restarter.py
+
+        - name: Upload artifact
+          uses: actions/upload-artifact@v4
+          with:
+            name: BotRestarter-linux-opensuse
+            path: dist/BotRestarter-opensuse
+
+    release:
+      runs-on: ubuntu-latest
+      needs: [build-windows, build-deb, build-rpm-rhel, build-rpm-opensuse]
+      if: startsWith(github.ref, 'refs/tags/')
+      steps:
+        - name: Download all artifacts
+          uses: actions/download-artifact@v4
+          with:
+            path: artifacts
+
+        - name: List downloaded artifacts (debug)
+          run: |
+            echo "Listing artifacts folder"
+            ls -la artifacts || true
+            ls -R artifacts || true
+
+        - name: Create Release and upload all artifacts
+          uses: softprops/action-gh-release@v2
+          with:
+            token: ${{ secrets.GITHUB_TOKEN }}
+            tag_name: ${{ github.ref_name }}
+            name: ${{ github.ref_name }}
+            files: |
+              artifacts/**
           token: ${{ secrets.GITHUB_TOKEN }}   # теперь явно указан
           files: |
             artifacts/BotRestarter-windows/BotRestarter.exe
