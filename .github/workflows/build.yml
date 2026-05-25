@@ -7,25 +7,25 @@ on:
 
 permissions:
   contents: write   # важно для создания релиза
+          - name: Download all artifacts
+            uses: actions/download-artifact@v4
+            with:
+              path: artifacts
 
-jobs:
-  build-windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build Windows
-        run: echo "Сборка Windows..."
+          - name: List downloaded artifacts (debug)
+            run: |
+              echo "Listing artifacts folder"
+              ls -la artifacts || true
+              ls -R artifacts || true
 
-  build-deb:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Build DEB
-        run: echo "Сборка DEB..."
-
-  build-rpm-rhel:
-    runs-on: ubuntu-latest
-    steps:
+          - name: Create Release and upload all artifacts
+            uses: softprops/action-gh-release@v2
+            with:
+              token: ${{ secrets.GITHUB_TOKEN }}
+              tag_name: ${{ github.ref_name }}
+              name: ${{ github.ref_name }}
+              files: |
+                artifacts/**
       - uses: actions/checkout@v4
       - name: Build RPM RHEL
         run: echo "Сборка RPM RHEL..."
@@ -42,13 +42,28 @@ jobs:
     needs: [build-windows, build-deb, build-rpm-rhel, build-rpm-opensuse]
     if: startsWith(github.ref, 'refs/tags/')
     steps:
+<<<<<<< HEAD
       - uses: actions/download-artifact@v4
+=======
+      permissions: # гарантируем, что токен может создавать релизы и загружать артефакты
+        contents: write
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+>>>>>>> a309b50 (ci: upload downloaded artifacts to release; ensure permissions; debug listing)
         with:
           path: artifacts
 
-      - name: Create Release
+      - name: List downloaded artifacts (debug)
+        run: |
+          echo "Listing artifacts folder"
+          ls -la artifacts || true
+          ls -R artifacts || true
+
+      - name: Create Release and upload all artifacts
         uses: softprops/action-gh-release@v2
         with:
+<<<<<<< HEAD
           token: ${{ secrets.GITHUB_TOKEN }}   # теперь явно указан
           files: |
             artifacts/BotRestarter-windows/BotRestarter.exe
@@ -56,3 +71,9 @@ jobs:
             artifacts/BotRestarter-linux-rhel/BotRestarter-rhel
             artifacts/BotRestarter-linux-opensuse/BotRestarter-opensuse
 
+=======
+          tag_name: ${{ github.ref_name }}
+          name: ${{ github.ref_name }}
+          files: |
+            artifacts/**
+>>>>>>> a309b50 (ci: upload downloaded artifacts to release; ensure permissions; debug listing)
