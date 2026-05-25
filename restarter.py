@@ -92,7 +92,7 @@ def start_process(binary_path, workdir):
         messagebox.showerror("Ошибка запуска", str(e))
         return False
 
-def restart_bot(binary_path, label, status_cb):
+def restart_process(binary_path, label, status_cb):
     if not binary_path or not os.path.isfile(binary_path):
         messagebox.showwarning("Не найден", f"Бинарник {label} не указан или не существует.")
         return
@@ -115,7 +115,7 @@ class App(ctk.CTk):
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("blue")
 
-        self.title("Bot Restarter")
+        self.title("Restarter")
         self.geometry("480x380")
         self.resizable(False, False)
         self.protocol("WM_DELETE_WINDOW", self.on_close)
@@ -129,7 +129,7 @@ class App(ctk.CTk):
     def _build_ui(self):
         pad = {"padx": 20, "pady": 8}
 
-        header = ctk.CTkLabel(self, text="Bot Restarter", font=ctk.CTkFont(size=22, weight="bold"))
+        header = ctk.CTkLabel(self, text="Restarter", font=ctk.CTkFont(size=22, weight="bold"))
         header.pack(pady=(24, 4))
 
         sub = ctk.CTkLabel(self, text="Telegram & Discord process manager", font=ctk.CTkFont(size=13), text_color="gray")
@@ -139,7 +139,7 @@ class App(ctk.CTk):
         tg_frame = ctk.CTkFrame(self, corner_radius=10)
         tg_frame.pack(fill="x", **pad)
 
-        ctk.CTkLabel(tg_frame, text="Telegram bot", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=14, pady=(10, 4))
+        ctk.CTkLabel(tg_frame, text="Telegram", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=14, pady=(10, 4))
 
         tg_row = ctk.CTkFrame(tg_frame, fg_color="transparent")
         tg_row.pack(fill="x", padx=10, pady=(0, 10))
@@ -155,7 +155,7 @@ class App(ctk.CTk):
         dc_frame = ctk.CTkFrame(self, corner_radius=10)
         dc_frame.pack(fill="x", **pad)
 
-        ctk.CTkLabel(dc_frame, text="Discord bot", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=14, pady=(10, 4))
+        ctk.CTkLabel(dc_frame, text="Discord", font=ctk.CTkFont(size=13, weight="bold")).pack(anchor="w", padx=14, pady=(10, 4))
 
         dc_row = ctk.CTkFrame(dc_frame, fg_color="transparent")
         dc_row.pack(fill="x", padx=10, pady=(0, 10))
@@ -172,7 +172,7 @@ class App(ctk.CTk):
         btn_frame.pack(fill="x", padx=20, pady=(12, 4))
 
         ctk.CTkButton(btn_frame, text="⟳  Telegram", height=36, command=lambda: self._do_restart("telegram")).pack(side="left", expand=True, padx=(0, 4))
-        ctk.CTkButton(btn_frame, text="⟳  Discord", height=36, command=lambda: self._do_restart("discord")).pack(side="left", expand=True, padx=(4, 4))
+        ctk.CTkButton(btn_frame, text="⟳  Discord", height=36, fg_color="#5865F2", hover_color="#4752C4", command=lambda: self._do_restart("discord")).pack(side="left", expand=True, padx=(4, 4))
         ctk.CTkButton(btn_frame, text="⟳  Оба", height=36, fg_color="#2d6a4f", hover_color="#1b4332", command=self._do_restart_both).pack(side="left", expand=True, padx=(4, 0))
 
         # Status
@@ -188,10 +188,10 @@ class App(ctk.CTk):
                 "Можно установить расширение 'AppIndicator' из GNOME Extensions."
             )
 
-    def _browse(self, bot):
-        path = filedialog.askopenfilename(title=f"Выберите бинарник {bot}")
+    def _browse(self, target):
+        path = filedialog.askopenfilename(title=f"Выберите бинарник {target}")
         if path:
-            if bot == "telegram":
+            if target == "telegram":
                 self.tg_entry.delete(0, "end")
                 self.tg_entry.insert(0, path)
             else:
@@ -207,17 +207,17 @@ class App(ctk.CTk):
     def _set_status(self, text):
         self.after(0, lambda: self.status_label.configure(text=text))
 
-    def _do_restart(self, bot):
+    def _do_restart(self, target):
         self._save_paths()
-        path = self.config_data.get(bot, "")
-        label = "Telegram" if bot == "telegram" else "Discord"
-        threading.Thread(target=restart_bot, args=(path, label, self._set_status), daemon=True).start()
+        path = self.config_data.get(target, "")
+        label = "Telegram" if target == "telegram" else "Discord"
+        threading.Thread(target=restart_process, args=(path, label, self._set_status), daemon=True).start()
 
     def _do_restart_both(self):
         self._save_paths()
         def both():
-            restart_bot(self.config_data.get("telegram", ""), "Telegram", self._set_status)
-            restart_bot(self.config_data.get("discord", ""), "Discord", self._set_status)
+            restart_process(self.config_data.get("telegram", ""), "Telegram", self._set_status)
+            restart_process(self.config_data.get("discord", ""), "Discord", self._set_status)
         threading.Thread(target=both, daemon=True).start()
 
     def _setup_tray(self):
@@ -231,7 +231,7 @@ class App(ctk.CTk):
                 pystray.Menu.SEPARATOR,
                 pystray.MenuItem("Выход", self._quit),
             )
-            self.tray_icon = pystray.Icon("BotRestarter", img, "Bot Restarter", menu)
+            self.tray_icon = pystray.Icon("Restarter", img, "Restarter", menu)
             threading.Thread(target=self.tray_icon.run, daemon=True).start()
         except Exception:
             pass
@@ -260,7 +260,7 @@ def draw_tray_icon(img):
         from PIL import ImageDraw
         d = ImageDraw.Draw(img)
         d.ellipse([8, 8, 56, 56], fill=(255, 255, 255))
-        d.text((18, 16), "BR", fill=(37, 99, 235))
+        d.text((18, 16), "R", fill=(37, 99, 235))
     except Exception:
         pass
 
