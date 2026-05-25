@@ -1,6 +1,6 @@
 # Bot Restarter
 
-Простая утилита для перезапуска Telegram и Discord ботов на Windows и Linux.
+Простая утилита для перезапуска Telegram и Discord клиентов на Windows и Linux.
 
 ## Что умеет
 
