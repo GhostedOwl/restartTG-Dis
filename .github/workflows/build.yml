@@ -1,0 +1,119 @@
+name: Build
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install customtkinter pystray pillow pyinstaller
+
+      - name: Build
+        run: pyinstaller --onefile --windowed --name BotRestarter restarter.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BotRestarter-windows
+          path: dist/BotRestarter.exe
+
+  build-deb:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-tk libappindicator3-dev
+
+      - name: Install dependencies
+        run: pip install customtkinter pystray pillow pyinstaller
+
+      - name: Build
+        run: pyinstaller --onefile --windowed --name BotRestarter --collect-all customtkinter restarter.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BotRestarter-linux-deb
+          path: dist/BotRestarter
+
+  build-rpm-rhel:
+    runs-on: ubuntu-22.04
+    container: rockylinux:9
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system deps
+        run: |
+          dnf install -y python3 python3-pip python3-tkinter gcc
+
+      - name: Install dependencies
+        run: pip3 install customtkinter pystray pillow pyinstaller
+
+      - name: Build
+        run: pyinstaller --onefile --windowed --name BotRestarter-rhel --collect-all customtkinter restarter.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BotRestarter-linux-rhel
+          path: dist/BotRestarter-rhel
+
+  build-rpm-opensuse:
+    runs-on: ubuntu-22.04
+    container: opensuse/tumbleweed
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system deps
+        run: |
+          zypper install -y python3 python3-pip python3-tk gcc
+
+      - name: Install dependencies
+        run: pip3 install customtkinter pystray pillow pyinstaller
+
+      - name: Build
+        run: pyinstaller --onefile --windowed --name BotRestarter-opensuse --collect-all customtkinter restarter.py
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: BotRestarter-linux-opensuse
+          path: dist/BotRestarter-opensuse
+
+  release:
+    needs: [build-windows, build-deb, build-rpm-rhel, build-rpm-opensuse]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            artifacts/BotRestarter-windows/BotRestarter.exe
+            artifacts/BotRestarter-linux-deb/BotRestarter
+            artifacts/BotRestarter-linux-rhel/BotRestarter-rhel
+            artifacts/BotRestarter-linux-opensuse/BotRestarter-opensuse
