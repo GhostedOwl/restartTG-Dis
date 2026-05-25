@@ -1,4 +1,4 @@
-# Bot Restarter
+# Рестартер
 
 Простая утилита для перезапуска Telegram и Discord клиентов на Windows и Linux.
 
