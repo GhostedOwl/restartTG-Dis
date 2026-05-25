@@ -1,51 +1,113 @@
-# Рестартер
+# Restarter
 
-Простая утилита для перезапуска Telegram и Discord клиентов на Windows и Linux.
+A simple utility to restart Telegram and Discord clients on Windows and Linux.
 
-## Что умеет
+## Features
 
-- Находит процесс по пути к исполняемому файлу, убивает и запускает заново
-- Сворачивается в системный трей с контекстным меню
-- Сохраняет пути в `config.json` рядом с собой
-- Работает на Windows и Linux (KDE, XFCE, MATE, Cinnamon и др.)
+- Automatically detects running Telegram/Discord and fills in the paths — no manual configuration needed on first launch
+- Finds the process by executable path, kills it and starts it again
+- Minimizes to system tray with a context menu (toggle show/hide)
+- Saves paths to `config.json` next to the executable
+- Works on Windows and Linux (KDE, XFCE, MATE, Cinnamon, etc.)
 
-> **GNOME**: системный трей не поддерживается по умолчанию. Приложение работает в обычном режиме окна. Можно добавить трей через расширение [AppIndicator](https://extensions.gnome.org/extension/615/appindicator-support/).
+> **GNOME**: system tray is not supported by default. The app works as a regular window. Tray can be enabled via the [AppIndicator](https://extensions.gnome.org/extension/615/appindicator-support/) extension.
 
-## Запуск из исходника
+## Run from source
 
 ```bash
 pip install customtkinter pystray pillow
 python restarter.py
 ```
 
-## Сборка в бинарник
+## Downloads
 
-**Linux:**
+Pre-built binaries are available on the [Releases](../../releases) page:
+
+| File | Platform |
+|------|----------|
+| `Restarter.exe` | Windows |
+| `Restarter` | Linux (Debian/Ubuntu) |
+| `Restarter-rhel` | Linux (RHEL/Rocky/Fedora) |
+| `Restarter-opensuse` | Linux (openSUSE) |
+
+On Linux, make the file executable before running:
 ```bash
-bash build_linux.sh
+chmod +x Restarter
+./Restarter
 ```
-
-**Windows:**
-```bat
-build_windows.bat
-```
-
-Результат в папке `dist/`.
 
 ## config.json
 
-Создаётся автоматически рядом с исполняемым файлом после первого выбора файлов.
+Created automatically next to the executable. Stores paths to Telegram and Discord binaries. Filled in automatically if the apps are already running when Restarter starts.
+
+## Tray
+
+Closing the window (×) minimizes to tray, does not exit.  
+Right-click the tray icon:
+- **Show / Hide** — toggles the window
+- **Restart TG + Discord** — restarts both
+- **Exit** — closes the app
+
+## How restart works
+
+1. Looks up the process PID by executable path (`pgrep -f` on Linux, `tasklist` on Windows)
+2. Kills the process (`SIGKILL` / `taskkill /F`)
+3. Starts the executable again in its directory as a detached process
+
+---
+
+# Restarter
+
+Проста утиліта для перезапуску клієнтів Telegram і Discord на Windows та Linux.
+
+## Можливості
+
+- Автоматично визначає запущені Telegram/Discord і заповнює шляхи — ніякого ручного налаштування при першому запуску
+- Знаходить процес за шляхом до виконуваного файлу, вбиває і запускає знову
+- Згортається в системний трей з контекстним меню (показати/сховати вікно)
+- Зберігає шляхи у `config.json` поруч із собою
+- Працює на Windows та Linux (KDE, XFCE, MATE, Cinnamon тощо)
+
+> **GNOME**: системний трей не підтримується за замовчуванням. Застосунок працює у звичайному режимі вікна. Трей можна додати через розширення [AppIndicator](https://extensions.gnome.org/extension/615/appindicator-support/).
+
+## Запуск із вихідного коду
+
+```bash
+pip install customtkinter pystray pillow
+python restarter.py
+```
+
+## Завантаження
+
+Готові бінарники доступні на сторінці [Releases](../../releases):
+
+| Файл | Платформа |
+|------|-----------|
+| `Restarter.exe` | Windows |
+| `Restarter` | Linux (Debian/Ubuntu) |
+| `Restarter-rhel` | Linux (RHEL/Rocky/Fedora) |
+| `Restarter-opensuse` | Linux (openSUSE) |
+
+На Linux перед запуском зробіть файл виконуваним:
+```bash
+chmod +x Restarter
+./Restarter
+```
+
+## config.json
+
+Створюється автоматично поруч із виконуваним файлом. Зберігає шляхи до бінарників Telegram і Discord. Заповнюється автоматично, якщо застосунки вже запущені на момент старту Restarter.
 
 ## Трей
 
-При закрытии окна (крестик) приложение сворачивается в трей, не завершается.  
-Правая кнопка на иконке трея:
-- **Развернуть** — показывает окно
-- **Перезапустить TG + Discord** — перезапускает оба
-- **Выход** — завершает приложение
+Закриття вікна (×) згортає в трей, не завершує роботу.  
+Права кнопка на іконці трею:
+- **Згорнути / Розгорнути** — перемикає видимість вікна
+- **Перезапустити TG + Discord** — перезапускає обидва
+- **Вихід** — завершує застосунок
 
-## Как работает перезапуск
+## Як працює перезапуск
 
-1. Ищет PID процесса по пути к исполняемому файлу (`pgrep -f` на Linux, `tasklist` на Windows)
-2. Убивает процесс (`SIGKILL` / `taskkill /F`)
-3. Запускает исполняемый файл заново в его директории как detached процесс
+1. Шукає PID процесу за шляхом до виконуваного файлу (`pgrep -f` на Linux, `tasklist` на Windows)
+2. Вбиває процес (`SIGKILL` / `taskkill /F`)
+3. Запускає виконуваний файл знову в його директорії як detached процес
