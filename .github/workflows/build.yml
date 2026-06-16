@@ -11,7 +11,23 @@ permissions:
 
 jobs:
 
+  test:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Run tests
+        run: pytest -q
+
   build-windows:
+    needs: test
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -33,6 +49,7 @@ jobs:
           path: dist/Restarter.exe
 
   build-deb:
+    needs: test
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -59,6 +76,7 @@ jobs:
           path: dist/Restarter
 
   build-rpm-rhel:
+    needs: test
     runs-on: ubuntu-22.04
     container: rockylinux:9
     steps:
@@ -81,6 +99,7 @@ jobs:
           path: dist/Restarter-rhel
 
   build-rpm-opensuse:
+    needs: test
     runs-on: ubuntu-22.04
     container: opensuse/tumbleweed
     steps:
