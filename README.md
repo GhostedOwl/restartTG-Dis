@@ -19,6 +19,15 @@ pip install customtkinter pystray pillow
 python restarter.py
 ```
 
+### Tests
+
+The test suite is headless and needs no GUI libraries (GUI deps are faked):
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
 ## Downloads
 
 Pre-built binaries are available on the [Releases](../../releases) page:
