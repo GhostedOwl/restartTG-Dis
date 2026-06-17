@@ -82,39 +82,81 @@ def detect_running_path(name_set):
         pass
     return None
 
-def find_pid_by_path(binary_path):
-    name = os.path.basename(binary_path)
+def find_pids_by_path(binary_path):
     system = platform.system()
+    pids = []
     try:
         if system == "Windows":
+            # askopenfilename returns forward-slash paths while Get-Process .Path
+            # returns backslashes; normcase+normpath unifies separators and case.
+            target = os.path.normcase(os.path.normpath(binary_path))
             result = subprocess.run(
-                ["tasklist", "/FO", "CSV", "/NH"],
+                [
+                    "powershell", "-NoProfile", "-Command",
+                    "Get-Process | Select-Object Id,Path | ConvertTo-Csv -NoTypeInformation"
+                ],
                 capture_output=True, text=True
             )
             for line in result.stdout.strip().splitlines():
-                parts = line.strip('"').split('","')
-                if len(parts) >= 2 and parts[0].lower() == name.lower():
-                    return int(parts[1])
+                line = line.strip().strip('"')
+                if not line or line.startswith("Id"):
+                    continue
+                parts = line.split('","')
+                if len(parts) < 2:
+                    continue
+                pid_str = parts[0].strip()
+                path = parts[1].strip()
+                if not path:
+                    continue
+                if os.path.normcase(os.path.normpath(path)) == target:
+                    try:
+                        pids.append(int(pid_str))
+                    except ValueError:
+                        continue
         else:
-            result = subprocess.run(["pgrep", "-f", binary_path], capture_output=True, text=True)
-            pids = result.stdout.strip().splitlines()
-            if pids:
-                return int(pids[0])
+            target = os.path.realpath(binary_path)
+            own_pid = os.getpid()
+            for exe_link in glob.glob("/proc/*/exe"):
+                try:
+                    pid = int(exe_link.split("/")[2])
+                    if pid == own_pid:
+                        continue
+                    exe_path = os.readlink(exe_link)
+                    if os.path.realpath(exe_path) == target:
+                        pids.append(pid)
+                except (OSError, PermissionError, ValueError):
+                    continue
     except Exception:
         pass
-    return None
+    return pids
 
-def kill_process(pid):
+def kill_processes(pids):
     system = platform.system()
-    try:
-        if system == "Windows":
-            subprocess.run(["taskkill", "/F", "/PID", str(pid)], capture_output=True)
-        else:
-            os.kill(pid, signal.SIGKILL)
-        time.sleep(0.8)
-        return True
-    except Exception:
-        return False
+    for pid in pids:
+        try:
+            if system == "Windows":
+                subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], capture_output=True)
+            else:
+                # Kill the whole process group too: Electron clients spawn helpers
+                # (chrome-sandbox, crashpad_handler, zygotes) whose exe path differs,
+                # so they are not in the pid list. Get pgid before the process dies.
+                try:
+                    pgid = os.getpgid(pid)
+                    if pgid != os.getpgid(os.getpid()):
+                        os.killpg(pgid, signal.SIGKILL)
+                except (OSError, ProcessLookupError):
+                    pass
+                os.kill(pid, signal.SIGKILL)
+        except (ProcessLookupError, OSError):
+            continue
+
+def wait_until_gone(binary_path, timeout=5.0):
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if not find_pids_by_path(binary_path):
+            return True
+        time.sleep(0.1)
+    return not find_pids_by_path(binary_path)
 
 def start_process(binary_path, workdir):
     try:
@@ -136,9 +178,10 @@ def restart_process(binary_path, label, status_cb):
         messagebox.showwarning("Не знайдено", f"Бінарник {label} не вказано або не існує.")
         return
     status_cb(f"{label}: зупиняю...")
-    pid = find_pid_by_path(binary_path)
-    if pid:
-        kill_process(pid)
+    pids = find_pids_by_path(binary_path)
+    if pids:
+        kill_processes(pids)
+        wait_until_gone(binary_path)
     workdir = os.path.dirname(binary_path)
     status_cb(f"{label}: запускаю...")
     ok = start_process(binary_path, workdir)
