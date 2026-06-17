@@ -86,6 +86,15 @@ pip install customtkinter pystray pillow
 python restarter.py
 ```
 
+### Тести
+
+Набір тестів працює без GUI і не потребує графічних бібліотек (залежності GUI підмінені заглушками):
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
 ## Завантаження
 
 Готові бінарники доступні на сторінці [Releases](../../releases):
