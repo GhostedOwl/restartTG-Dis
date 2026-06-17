@@ -9,8 +9,6 @@ restart_process (now tested here on this branch).
 import json
 from unittest.mock import MagicMock
 
-import pytest
-
 import restarter
 
 
@@ -64,16 +62,11 @@ def test_load_config_corrupt_json(monkeypatch, tmp_path):
     assert restarter.load_config() == {"telegram": "", "discord": ""}
 
 
-@pytest.mark.xfail(
-    reason="known bug: load_config does not validate that the parsed value is "
-    "a dict; tracked in review backlog",
-    strict=True,
-)
 def test_load_config_valid_non_dict(monkeypatch, tmp_path):
     cfg_file = tmp_path / "config.json"
     cfg_file.write_text("[]")  # valid JSON, but not a dict
     monkeypatch.setattr(restarter, "CONFIG_FILE", str(cfg_file))
-    # DESIRED behavior: fall back to the default dict.
+    # Non-dict JSON falls back to the default dict.
     assert restarter.load_config() == {"telegram": "", "discord": ""}
 
 
