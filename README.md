@@ -4,7 +4,7 @@ A simple utility to restart Telegram and Discord clients on Windows and Linux.
 
 ## Features
 
-- Automatically detects running Telegram/Discord and fills in the paths — no manual configuration needed on first launch
+- Detects running Telegram/Discord and fills in the paths automatically; if a client is not running, pick its binary manually
 - Finds the process by executable path, kills it and starts it again
 - Minimizes to system tray with a context menu (toggle show/hide)
 - Saves paths to `config.json` next to the executable
@@ -52,16 +52,17 @@ Created automatically next to the executable. Stores paths to Telegram and Disco
 ## Tray
 
 Closing the window (×) minimizes to tray, does not exit.  
-Right-click the tray icon:
-- **Show / Hide** — toggles the window
-- **Restart TG + Discord** — restarts both
-- **Exit** — closes the app
+Right-click the tray icon (the UI is in Ukrainian):
+- **Згорнути / Розгорнути** - toggle the window
+- **Перезапустити TG + Discord** - restart both
+- **Вихід** - exit the app
 
 ## How restart works
 
-1. Looks up the process PID by executable path (`pgrep -f` on Linux, `tasklist` on Windows)
-2. Kills the process (`SIGKILL` / `taskkill /F`)
-3. Starts the executable again in its directory as a detached process
+1. Finds every process whose executable is the target binary (scans `/proc/*/exe` on Linux, queries `Get-Process` by full path on Windows), so multi-process clients like Discord are matched in full
+2. Kills them all (`SIGKILL` plus the process group on Linux; `taskkill /F /T` to kill the process tree on Windows)
+3. Waits until every matching process has actually exited (with a timeout)
+4. Starts the executable again in its directory as a detached process
 
 ---
 
@@ -71,7 +72,7 @@ Right-click the tray icon:
 
 ## Можливості
 
-- Автоматично визначає запущені Telegram/Discord і заповнює шляхи — ніякого ручного налаштування при першому запуску
+- Визначає запущені Telegram/Discord і автоматично заповнює шляхи; якщо клієнт не запущено, вкажіть бінарник вручну
 - Знаходить процес за шляхом до виконуваного файлу, вбиває і запускає знову
 - Згортається в системний трей з контекстним меню (показати/сховати вікно)
 - Зберігає шляхи у `config.json` поруч із собою
@@ -126,6 +127,7 @@ chmod +x Restarter
 
 ## Як працює перезапуск
 
-1. Шукає PID процесу за шляхом до виконуваного файлу (`pgrep -f` на Linux, `tasklist` на Windows)
-2. Вбиває процес (`SIGKILL` / `taskkill /F`)
-3. Запускає виконуваний файл знову в його директорії як detached процес
+1. Знаходить усі процеси, чий виконуваний файл збігається з цільовим бінарником (сканує `/proc/*/exe` на Linux, запитує `Get-Process` за повним шляхом на Windows), тож багатопроцесні клієнти на кшталт Discord охоплюються повністю
+2. Вбиває їх усі (`SIGKILL` плюс групу процесів на Linux; `taskkill /F /T` для знищення дерева процесів на Windows)
+3. Чекає, доки всі знайдені процеси справді завершаться (з таймаутом)
+4. Знову запускає виконуваний файл у його директорії як відокремлений процес
